@@ -1,9 +1,29 @@
 """
 Main VIP program
 """
-import os
 import re
 from git import Repo
+
+
+def commit_contains_sub_paths(commit, sub_paths):
+    """
+    Determine if a commit contains changes to files that contain specific sub-paths
+    :param commit: the commit
+    :param sub_paths: a list of sub-paths. 'None' for changes to any files to be counted
+    :return: True if the commit has changes to any of the specific sub-paths
+    """
+    if not sub_paths:
+        return True
+
+    if '*' in sub_paths:
+        return True
+
+    for file in commit.stats.files:
+        for sub_path in sub_paths:
+            if file.startswith(sub_path):
+                return True
+
+    return False
 
 
 class RepoDetails:
@@ -58,26 +78,50 @@ class RepoDetails:
         return self.modification_count() > 0
 
     def version_output_function(self, match_pattern, tag, index):
+        """
+        Create the desired version number string
+        :param match_pattern: the pattern that will match the tag
+        :param tag: the first tag that matched the pattern
+        :param index: the number of commits since the tag
+        :return: a string representing a version number
+        """
         match = re.match(match_pattern, tag.name)
         if match:
-            return '{0}.{1}.{2}.{3}'.format(match.group('major'),
-                                            match.group('minor'),
-                                            index,
-                                            self.modification_count())
+            return '{0}{1}{2}{1}{3}{1}{4}'.format(match.group('major'),
+                                                  match.group('separator'),
+                                                  match.group('minor'),
+                                                  index,
+                                                  self.modification_count())
 
     def version(self,
-                match_pattern=r'^(?P<major>\d+)\.(?P<minor>\d+)$',
+                tag_prefix='',
+                tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
+                sub_paths=None,
                 output_function=version_output_function):
+        """
+        Search through commits to create the correct version number
+        :param tag_prefix: what a matching tag should start with
+        :param tag_match_pattern: the pattern after the tag prefix that should match
+        :param sub_paths: a list of which sub-paths that will cause the version to increase if changes are made to
+                          files that start with matching paths
+        :param output_function: the function that will be called to actually create the version string
+        :return: a version string
+        """
+        match_pattern = tag_prefix + tag_match_pattern
         tags = []
         for tag in self._repo.tags:
             if re.match(match_pattern, str(tag)):
                 tags.append(tag)
 
         commits = list(self._repo.iter_commits())
-        for index, commit in enumerate(commits):
+        index = 0
+        for _, commit in enumerate(commits):
             for tag in tags:
                 if tag.object.hexsha == commit.hexsha:
                     return output_function(self, match_pattern, tag, index)
+
+            if commit_contains_sub_paths(commit, sub_paths):
+                index += 1
 
 
 def main():
@@ -87,16 +131,17 @@ def main():
     """
 #    working_directory = os.path.dirname(os.path.realpath(__file__))
 #    working_directory = 'C:\\Projects\\band_bringup'
-    working_directory = 'C:\\Projects\\CCS\\Badain'
+    working_directory = 'C:\\Projects\\git\\test1'
     print(working_directory)
     repo_details = RepoDetails(working_directory)
     print(repo_details.branch_name())
     print(repo_details.sha())
     print(repo_details.sha(5))
+    print(repo_details.sha(40))
     print(repo_details.datetime())
     print(str(repo_details.modification_count()))
     print(str(repo_details.has_modifications()))
-    print(repo_details.version())
+    print(repo_details.version(tag_prefix='dir1_', sub_paths=['dir1']))
 
 
 if __name__ == "__main__":
