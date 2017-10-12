@@ -2,6 +2,7 @@
 Main VIP program
 """
 import re
+from time import localtime, strptime, strftime
 from git import Repo
 
 
@@ -30,8 +31,9 @@ class RepoDetails:
     """
     The repo details class
     """
-    def __init__(self, repo_path):
+    def __init__(self, repo_path, datetime_format='%Y-%m-%d %H:%M:%S%z'):
         self.repo_path = repo_path
+        self.datetime_format = datetime_format
         self._repo = Repo(repo_path)
         self._commit = self._repo.head.commit
         self._index = self._repo.index
@@ -58,7 +60,16 @@ class RepoDetails:
         The datetime of the currently checked out commit
         :return: the date time as a string
         """
-        return self._commit.authored_datetime
+        authored_datetime = ''.join(str(self._commit.authored_datetime).rsplit(':', 1))
+        time_structure = strptime(authored_datetime, '%Y-%m-%d %H:%M:%S%z')
+        return strftime(self.datetime_format, time_structure)
+
+    def current_datetime(self):
+        """
+        The datetime right now
+        :return: the date time as a string
+        """
+        return strftime(self.datetime_format, localtime())
 
     def modification_count(self):
         """
@@ -139,6 +150,7 @@ def main():
     print(repo_details.sha(5))
     print(repo_details.sha(40))
     print(repo_details.datetime())
+    print(repo_details.current_datetime())
     print(str(repo_details.modification_count()))
     print(str(repo_details.has_modifications()))
     print(repo_details.version(tag_prefix='dir1_', sub_paths=['dir1']))
