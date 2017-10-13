@@ -96,13 +96,23 @@ class RepoDetails:
         :param index: the number of commits since the tag
         :return: a string representing a version number
         """
-        match = re.match(match_pattern, tag.name)
+        major = '0'
+        separator = '.'
+        minor = '0'
+        match = re.match(match_pattern, tag)
         if match:
-            return '{0}{1}{2}{1}{3}{1}{4}'.format(match.group('major'),
-                                                  match.group('separator'),
-                                                  match.group('minor'),
-                                                  index,
-                                                  self.modification_count())
+            if match.group('major'):
+                major = match.group('major')
+            if match.group('separator'):
+                separator = match.group('separator')
+            if match.group('minor'):
+                minor = match.group('minor')
+
+        return '{0}{1}{2}{1}{3}{1}{4}'.format(major,
+                                              separator,
+                                              minor,
+                                              index,
+                                              self.modification_count())
 
     def version(self,
                 tag_prefix='',
@@ -125,14 +135,21 @@ class RepoDetails:
                 tags.append(tag)
 
         commits = list(self._repo.iter_commits())
+        tag_name = ''
         index = 0
         for _, commit in enumerate(commits):
             for tag in tags:
                 if tag.object.hexsha == commit.hexsha:
-                    return output_function(self, match_pattern, tag, index)
+                    tag_name = tag.name
+                    break
+
+            if '' != tag_name:
+                break
 
             if commit_contains_sub_paths(commit, sub_paths):
                 index += 1
+
+        return output_function(self, match_pattern, tag_name, index)
 
 
 def main():
@@ -153,7 +170,7 @@ def main():
     print(repo_details.current_datetime())
     print(str(repo_details.modification_count()))
     print(str(repo_details.has_modifications()))
-    print(repo_details.version(tag_prefix='dir1_', sub_paths=['dir1']))
+    print(repo_details.version(tag_prefix='dir2_', sub_paths=['dir1']))
 
 
 if __name__ == "__main__":
