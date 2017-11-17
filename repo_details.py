@@ -47,6 +47,13 @@ class RepoDetails:
         """
         return self._repo.active_branch
 
+    def commit_number(self):
+        """
+        The number of commits in the history of the currently checked out branch
+        :return: the number of commits
+        """
+        return len(list(self._repo.iter_commits()))
+
     def sha(self, num_chars=7):
         """
         The sha of the currently checked out commit
@@ -55,21 +62,25 @@ class RepoDetails:
         """
         return self._commit.hexsha[:num_chars]
 
-    def datetime(self):
+    def commit_datetime(self, datetime_format=None):
         """
         The datetime of the currently checked out commit
         :return: the date time as a string
         """
+        if not datetime_format:
+            datetime_format = self.datetime_format
         authored_datetime = ''.join(str(self._commit.authored_datetime).rsplit(':', 1))
         time_structure = strptime(authored_datetime, '%Y-%m-%d %H:%M:%S%z')
-        return strftime(self.datetime_format, time_structure)
+        return strftime(datetime_format, time_structure)
 
-    def current_datetime(self):
+    def current_datetime(self, datetime_format=None):
         """
         The datetime right now
         :return: the date time as a string
         """
-        return strftime(self.datetime_format, localtime())
+        if not datetime_format:
+            datetime_format = self.datetime_format
+        return strftime(datetime_format, localtime())
 
     def modification_count(self):
         """
@@ -151,6 +162,20 @@ class RepoDetails:
 
         return output_function(self, match_pattern, tag_name, index)
 
+    def print_summary(self):
+        """
+        Prints a summary of the repository.
+        :return: None
+        """
+        print(self.repo_path)
+        print(self.branch_name())
+        print(self.sha())
+        print(str(self.modification_count()))
+        print(str(self.has_modifications()))
+        print(self.commit_datetime())
+        print(self.current_datetime())
+        print(self.version())
+
 
 def main():
     """
@@ -162,15 +187,7 @@ def main():
     working_directory = 'C:\\Projects\\git\\test1'
     print(working_directory)
     repo_details = RepoDetails(working_directory)
-    print(repo_details.branch_name())
-    print(repo_details.sha())
-    print(repo_details.sha(5))
-    print(repo_details.sha(40))
-    print(repo_details.datetime())
-    print(repo_details.current_datetime())
-    print(str(repo_details.modification_count()))
-    print(str(repo_details.has_modifications()))
-    print(repo_details.version(tag_prefix='dir2_', sub_paths=['dir1']))
+    repo_details.print_summary()
 
 
 if __name__ == "__main__":
