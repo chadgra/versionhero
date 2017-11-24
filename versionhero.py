@@ -8,6 +8,7 @@ from repo_details import RepoDetails
 
 
 KEY_CHARACTERS = r'[!@#$%^&*]'
+ARG_1 = r'(?P<arg_1>.*)'
 
 
 class KeywordReplacer:
@@ -32,8 +33,18 @@ class KeywordReplacer:
         :param substitution_lambda: the lambda function to call to get the replacement text
         :return: None
         """
-        keyword = str.format(r'{0}{1}{0}', KEY_CHARACTERS, keyword)
-        self.text = re.sub(keyword, str(substitution_lambda()), self.text)
+        keyword = str.format(r'{0}{1}{2}{0}', KEY_CHARACTERS, keyword, ARG_1)
+        while True:
+            match = re.search(keyword, self.text)
+            if match is None:
+                break
+            arg_1 = match.groupdict()['arg_1']
+            if arg_1:
+                substitution = str(substitution_lambda(arg_1))
+            else:
+                substitution = str(substitution_lambda())
+
+            self.text = self.text.replace(match.group(), substitution)
 
     def execute(self):
         """
@@ -45,6 +56,8 @@ class KeywordReplacer:
         self.simple_replacement('GITCOMMITNUMBER', self.repo_details.commit_number)
         self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime)
         self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime)
+        self.simple_replacement('GITHASH', self.repo_details.sha)
+        self.simple_replacement('GITVERSION', self.repo_details.version)
         return self.text
 
 

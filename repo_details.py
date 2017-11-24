@@ -60,6 +60,11 @@ class RepoDetails:
         :param num_chars: the number of characters to return
         :return: the sha as a string
         """
+        try:
+            num_chars = int(num_chars)
+        except ValueError:
+            num_chars = 7
+
         return self._commit.hexsha[:num_chars]
 
     def commit_datetime(self, datetime_format=None):
