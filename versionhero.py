@@ -8,7 +8,6 @@ from repo_details import RepoDetails
 
 
 KEY_CHARACTERS = r'[!@#$%^&*]'
-ARG_1 = r'(?P<arg_1>.*)'
 
 
 class KeywordReplacer:
@@ -26,24 +25,20 @@ class KeywordReplacer:
         self.project_dir = project_dir
         self.text = text
 
-    def simple_replacement(self, keyword, substitution_lambda):
+    def simple_replacement(self, keyword, substitution_lambda, additional_args=''):
         """
         Replace the suplied keyword with the result of the substitution_lambda in the text of this object.
         :param keyword: the keyword to replace (not including any KEY_CHARACTERS)
         :param substitution_lambda: the lambda function to call to get the replacement text
         :return: None
         """
-        keyword = str.format(r'{0}{1}{2}{0}', KEY_CHARACTERS, keyword, ARG_1)
+        keyword = str.format(r'{0}{1}{2}{0}', KEY_CHARACTERS, keyword, additional_args)
         while True:
             match = re.search(keyword, self.text)
             if match is None:
                 break
-            arg_1 = match.groupdict()['arg_1']
-            if arg_1:
-                substitution = str(substitution_lambda(arg_1))
-            else:
-                substitution = str(substitution_lambda())
 
+            substitution = str(substitution_lambda(**match.groupdict()))
             self.text = self.text.replace(match.group(), substitution)
 
     def execute(self):
@@ -54,10 +49,11 @@ class KeywordReplacer:
         self.simple_replacement('GITBRANCHNAME', self.repo_details.branch_name)
         self.simple_replacement('GITMODCOUNT', self.repo_details.modification_count)
         self.simple_replacement('GITCOMMITNUMBER', self.repo_details.commit_number)
-        self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime)
-        self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime)
-        self.simple_replacement('GITHASH', self.repo_details.sha)
-        self.simple_replacement('GITVERSION', self.repo_details.version)
+        self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime, r'(?P<datetime_format>.*)')
+        self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime, r'(?P<datetime_format>.*)')
+        self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*)')
+        self.simple_replacement('GITMODS', self.repo_details.has_modifications, r'\?(?P<true_value>.*):(?P<false_value>.*)')
+        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)')
         return self.text
 
 

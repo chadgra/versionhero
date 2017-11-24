@@ -97,14 +97,14 @@ class RepoDetails:
                 len(self._index.diff(None)) + len(self._index.diff('HEAD'))
         return self._modification_count
 
-    def has_modifications(self):
+    def has_modifications(self, true_value=True, false_value=False):
         """
-        A bool if there are local modifications on the currently chekced out commit
+        A bool if there are local modifications on the currently checked out commit
         :return: True if there are modifications
         """
-        return self.modification_count() > 0
+        return true_value if (self.modification_count() > 0) else false_value
 
-    def version_output_function(self, match_pattern, tag, index):
+    def version_output_function(self, separator, match_pattern, tag, index):
         """
         Create the desired version number string
         :param match_pattern: the pattern that will match the tag
@@ -113,16 +113,19 @@ class RepoDetails:
         :return: a string representing a version number
         """
         major = '0'
-        separator = '.'
         minor = '0'
         match = re.match(match_pattern, tag)
         if match:
             if match.group('major'):
                 major = match.group('major')
-            if match.group('separator'):
-                separator = match.group('separator')
             if match.group('minor'):
                 minor = match.group('minor')
+            if separator is None or separator is '':
+                if match.group('separator'):
+                    separator = match.group('separator')
+
+        if separator is None or separator is '':
+            separator = '.'
 
         return '{0}{1}{2}{1}{3}{1}{4}'.format(major,
                                               separator,
@@ -131,6 +134,7 @@ class RepoDetails:
                                               self.modification_count())
 
     def version(self,
+                separator=None,
                 tag_prefix='',
                 tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
                 sub_paths=None,
@@ -165,7 +169,7 @@ class RepoDetails:
             if commit_contains_sub_paths(commit, sub_paths):
                 index += 1
 
-        return output_function(self, match_pattern, tag_name, index)
+        return output_function(self, separator, match_pattern, tag_name, index)
 
     def print_summary(self):
         """
