@@ -19,8 +19,13 @@ def commit_contains_sub_paths(commit, sub_paths):
     if '*' in sub_paths:
         return True
 
+    if isinstance(sub_paths, str):
+        sub_paths = [sub_paths]
+
     for file in commit.stats.files:
         for sub_path in sub_paths:
+            sub_path = sub_path.replace('\\', '/')
+            sub_path = sub_path.lstrip('/')
             if file.startswith(sub_path):
                 return True
 
@@ -107,6 +112,7 @@ class RepoDetails:
     def version_output_function(self, separator, match_pattern, tag, index):
         """
         Create the desired version number string
+        :param separator: the character that separates the different parts of the version
         :param match_pattern: the pattern that will match the tag
         :param tag: the first tag that matched the pattern
         :param index: the number of commits since the tag
@@ -141,11 +147,13 @@ class RepoDetails:
                 output_function=version_output_function):
         """
         Search through commits to create the correct version number
+        :param separator: the character that separates the different parts of the version
         :param tag_prefix: what a matching tag should start with
         :param tag_match_pattern: the pattern after the tag prefix that should match
-        :param sub_paths: a list of which sub-paths that will cause the version to increase if changes are made to
-                          files that start with matching paths
-        :param output_function: the function that will be called to actually create the version string
+        :param sub_paths: a list of which sub-paths that will cause the version to increase if
+                          changes are made to files that start with matching paths
+        :param output_function: the function that will be called to actually create the version
+                                string
         :return: a version string
         """
         match_pattern = tag_prefix + tag_match_pattern

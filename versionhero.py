@@ -25,20 +25,29 @@ class KeywordReplacer:
         self.project_dir = project_dir
         self.text = text
 
-    def simple_replacement(self, keyword, substitution_lambda, additional_args=''):
+    def simple_replacement(self, keyword, substitution_lambda, keyword_arg_pattern='',
+                           additional_args=None):
         """
-        Replace the suplied keyword with the result of the substitution_lambda in the text of this object.
+        Replace the supplied keyword with the result of the substitution_lambda in the text of this
+        object.
         :param keyword: the keyword to replace (not including any KEY_CHARACTERS)
         :param substitution_lambda: the lambda function to call to get the replacement text
+        :param keyword_arg_pattern: some keywords can have additional arguments this is the regular
+                                    expression match pattern
+        :param additional_args: if any extra arguments needs to be passed into the
+                                substitution_lambda pass them in this dictionary
         :return: None
         """
-        keyword = str.format(r'{0}{1}{2}{0}', KEY_CHARACTERS, keyword, additional_args)
+        keyword = str.format(r'{0}{1}{2}{0}', KEY_CHARACTERS, keyword, keyword_arg_pattern)
         while True:
             match = re.search(keyword, self.text)
             if match is None:
                 break
 
-            substitution = str(substitution_lambda(**match.groupdict()))
+            if not additional_args:
+                additional_args = {}
+            substitution_args = {**match.groupdict(), **additional_args}
+            substitution = str(substitution_lambda(**substitution_args))
             self.text = self.text.replace(match.group(), substitution)
 
     def execute(self):
@@ -49,11 +58,15 @@ class KeywordReplacer:
         self.simple_replacement('GITBRANCHNAME', self.repo_details.branch_name)
         self.simple_replacement('GITMODCOUNT', self.repo_details.modification_count)
         self.simple_replacement('GITCOMMITNUMBER', self.repo_details.commit_number)
-        self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime, r'(?P<datetime_format>.*)')
-        self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime, r'(?P<datetime_format>.*)')
+        self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime,
+                                r'(?P<datetime_format>.*)')
+        self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime,
+                                r'(?P<datetime_format>.*)')
         self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*)')
-        self.simple_replacement('GITMODS', self.repo_details.has_modifications, r'\?(?P<true_value>.*):(?P<false_value>.*)')
-        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)')
+        self.simple_replacement('GITMODS', self.repo_details.has_modifications,
+                                r'\?(?P<true_value>.*):(?P<false_value>.*)')
+        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)',
+                                {'sub_paths': self.project_dir})
         return self.text
 
 
@@ -63,8 +76,8 @@ def main():
     :return: None
     """
     # Setup command-line args that we accept.
-    parser = argparse.ArgumentParser(
-        description='Parse an input file, replacing tags with information about the git repository.')
+    parser = argparse.ArgumentParser(description='Parse an input file, replacing tags with ' +
+                                                 'information about the git repository.')
 
     parser.add_argument('--template', '-t', '-f',
                         help='The template file.',
@@ -100,6 +113,7 @@ def main():
         project_dir = repo_dir
     elif not os.path.isabs(project_dir):
         project_dir = os.path.abspath(project_dir)
+    project_dir = project_dir.replace(repo_dir, '')
 
     repo = RepoDetails(repo_dir)
     repo.print_summary()
