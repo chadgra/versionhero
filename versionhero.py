@@ -14,15 +14,13 @@ class KeywordReplacer:
     """
     The keyword replacer class.
     """
-    def __init__(self, text, repo_details, project_dir):
+    def __init__(self, text, repo_details):
         """
         Create a KeywordReplacer object
         :param text: the text that will have keywords replaced
         :param repo_details: a RepoDetails object
-        :param project_dir: the project directory
         """
         self.repo_details = repo_details
-        self.project_dir = project_dir
         self.text = text
 
     def simple_replacement(self, keyword, substitution_lambda, keyword_arg_pattern='',
@@ -65,8 +63,7 @@ class KeywordReplacer:
         self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*)')
         self.simple_replacement('GITMODS', self.repo_details.has_modifications,
                                 r'\?(?P<true_value>.*):(?P<false_value>.*)')
-        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)',
-                                {'sub_paths': self.project_dir})
+        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)')
         return self.text
 
 
@@ -87,6 +84,9 @@ def main():
                         default='')
     parser.add_argument('--project_dir', '-p', '--project',
                         help='Directory of a project in a git repository.')
+    parser.add_argument('--tag_prefix', '-tp',
+                        help='The prefix of matching tags',
+                        default='')
 
     args = parser.parse_args()
 
@@ -115,13 +115,13 @@ def main():
         project_dir = os.path.abspath(project_dir)
     project_dir = project_dir.replace(repo_dir, '')
 
-    repo = RepoDetails(repo_dir)
+    repo = RepoDetails(repo_dir, tag_prefix=args.tag_prefix, sub_paths=project_dir)
     repo.print_summary()
 
     file = open(input_file, 'r')
     file_text = file.read()
     file.close()
-    replacer = KeywordReplacer(file_text, repo, project_dir)
+    replacer = KeywordReplacer(file_text, repo)
 
     if os.path.exists(backup_file):
         os.remove(backup_file)

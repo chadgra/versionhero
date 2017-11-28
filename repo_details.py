@@ -1,6 +1,7 @@
 """
 Main VIP program
 """
+import os
 import re
 from time import localtime, strptime, strftime
 from git import Repo
@@ -36,8 +37,25 @@ class RepoDetails:
     """
     The repo details class
     """
-    def __init__(self, repo_path, datetime_format='%Y-%m-%d %H:%M:%S%z'):
+    def __init__(self,
+                 repo_path,
+                 tag_prefix='',
+                 tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
+                 sub_paths=None,
+                 datetime_format='%Y-%m-%d %H:%M:%S%z'):
+        """
+        Initialize the RepoDetails object.
+        :param repo_path: the path to the repository
+        :param tag_prefix: what a matching tag should start with
+        :param tag_match_pattern: the pattern after the tag prefix that should match
+        :param sub_paths: a list of which sub-paths that will cause the version to increase if
+                          changes are made to files that start with matching paths
+        :param datetime_format: the default format for date/time stamps
+        """
         self.repo_path = repo_path
+        self.tag_prefix = tag_prefix
+        self.tag_match_pattern = tag_match_pattern
+        self.sub_paths = sub_paths
         self.datetime_format = datetime_format
         self._repo = Repo(repo_path)
         self._commit = self._repo.head.commit
@@ -141,22 +159,15 @@ class RepoDetails:
 
     def version(self,
                 separator=None,
-                tag_prefix='',
-                tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
-                sub_paths=None,
                 output_function=version_output_function):
         """
         Search through commits to create the correct version number
         :param separator: the character that separates the different parts of the version
-        :param tag_prefix: what a matching tag should start with
-        :param tag_match_pattern: the pattern after the tag prefix that should match
-        :param sub_paths: a list of which sub-paths that will cause the version to increase if
-                          changes are made to files that start with matching paths
         :param output_function: the function that will be called to actually create the version
                                 string
         :return: a version string
         """
-        match_pattern = tag_prefix + tag_match_pattern
+        match_pattern = self.tag_prefix + self.tag_match_pattern
         tags = []
         for tag in self._repo.tags:
             if re.match(match_pattern, str(tag)):
@@ -174,7 +185,7 @@ class RepoDetails:
             if '' != tag_name:
                 break
 
-            if commit_contains_sub_paths(commit, sub_paths):
+            if commit_contains_sub_paths(commit, self.sub_paths):
                 index += 1
 
         return output_function(self, separator, match_pattern, tag_name, index)
@@ -199,9 +210,7 @@ def main():
     Run this main function if this script is called directly.
     :return: None
     """
-#    working_directory = os.path.dirname(os.path.realpath(__file__))
-#    working_directory = 'C:\\Projects\\band_bringup'
-    working_directory = 'C:\\Projects\\git\\test1'
+    working_directory = os.path.dirname(os.path.realpath(__file__))
     print(working_directory)
     repo_details = RepoDetails(working_directory)
     repo_details.print_summary()
