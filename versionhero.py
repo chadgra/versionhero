@@ -104,7 +104,10 @@ class ProgramArgs:
         input_file = self.args.template
         if not os.path.isabs(input_file):
             input_file = os.path.abspath(os.path.join(os.getcwd(), input_file))
-        input_file = input_file if input_file.endswith('.git') else input_file + '.git'
+
+        # If this file is to be renamed don't add '.git' to the end.
+        if not self.rename():
+            input_file = input_file if input_file.endswith('.git') else input_file + '.git'
 
         self._input_file = input_file
         return self._input_file
