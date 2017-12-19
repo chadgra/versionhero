@@ -57,7 +57,7 @@ class VersionHero:
         """
         repo = RepoDetails(self.args.repo_dir(),
                            tag_prefix=self.args.tag_prefix(),
-                           sub_paths=self.args.project_dir())
+                           sub_paths=self.args.project_dirs())
         repo.print_summary()
 
         text = self.fetch_template_text()
@@ -81,7 +81,9 @@ class ProgramArgs:
                             help='The repository - defaults to the current repository',
                             default='')
         parser.add_argument('--project_dir', '-p', '--project',
-                            help='Directory of a project in a git repository.')
+                            action='append',
+                            help='Directory of a project in a git repository.  ' +
+                                 'Multiple directories can be included; put "-p" before each one.')
         parser.add_argument('--tag_prefix', '-tp',
                             help='The prefix of matching tags',
                             default='')
@@ -91,7 +93,7 @@ class ProgramArgs:
         self.args = parser.parse_args()
         self._input_file = None
         self._repo_dir = None
-        self._project_dir = None
+        self._project_dirs = None
 
     def input_file(self):
         """
@@ -146,24 +148,23 @@ class ProgramArgs:
         self._repo_dir = repo_dir
         return self._repo_dir
 
-    def project_dir(self):
+    def project_dirs(self):
         """
         Get the project directory.
         :return: the project directory as a partial path.
         """
-        if self._project_dir:
-            return self._project_dir
+        if self._project_dirs:
+            return self._project_dirs
 
         # Initialize the project_dir, which could be a sub-directory of the repository.
-        project_dir = self.args.project_dir
-        if not project_dir:
-            project_dir = self.repo_dir()
-        elif not os.path.isabs(project_dir):
-            project_dir = os.path.abspath(project_dir)
-        project_dir = project_dir.replace(self.repo_dir(), '')
+        project_dirs = []
+        for project_dir in self.args.project_dir:
+            if not os.path.isabs(project_dir):
+                project_dir = os.path.abspath(os.path.join(os.getcwd(), project_dir))
+            project_dirs.append(project_dir.replace(self.repo_dir(), ''))
 
-        self._project_dir = project_dir
-        return self._project_dir
+        self._project_dirs = project_dirs
+        return self._project_dirs
 
     def tag_prefix(self):
         """
