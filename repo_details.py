@@ -1,5 +1,5 @@
 """
-Main VIP program
+Get information about a repository.
 """
 import os
 import re
