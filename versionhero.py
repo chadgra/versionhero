@@ -158,10 +158,11 @@ class ProgramArgs:
 
         # Initialize the project_dir, which could be a sub-directory of the repository.
         project_dirs = []
-        for project_dir in self.args.project_dir:
-            if not os.path.isabs(project_dir):
-                project_dir = os.path.abspath(os.path.join(os.getcwd(), project_dir))
-            project_dirs.append(project_dir.replace(self.repo_dir(), ''))
+        if self.args.project_dir:
+            for project_dir in self.args.project_dir:
+                if not os.path.isabs(project_dir):
+                    project_dir = os.path.abspath(os.path.join(os.getcwd(), project_dir))
+                project_dirs.append(project_dir.replace(self.repo_dir(), ''))
 
         self._project_dirs = project_dirs
         return self._project_dirs
@@ -232,10 +233,10 @@ class KeywordReplacer:
                                 r'(?P<datetime_format>.*)')
         self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime,
                                 r'(?P<datetime_format>.*)')
-        self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*)')
+        self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*?)')
         self.simple_replacement('GITMODS', self.repo_details.has_modifications,
-                                r'\?(?P<true_value>.*):(?P<false_value>.*)')
-        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*)')
+                                r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
+        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*?)')
         return self.text
 
 
