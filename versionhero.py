@@ -5,6 +5,7 @@ import argparse
 import os
 import re
 import shutil
+from time import time
 from repo_details import RepoDetails
 
 
@@ -73,7 +74,7 @@ class ProgramArgs:
     def __init__(self):
         # Setup command-line args that we accept.
         parser = argparse.ArgumentParser(description='Parse an input file, replacing tags with ' +
-                                                     'information about the git repository.')
+                                         'information about the git repository.')
 
         parser.add_argument('template',
                             help='The template file.')
@@ -83,7 +84,7 @@ class ProgramArgs:
         parser.add_argument('--project_dir', '-p', '--project',
                             action='append',
                             help='Directory of a project in a git repository.  ' +
-                                 'Multiple directories can be included; put "-p" before each one.')
+                            'Multiple directories can be included; put "-p" before each one.')
         parser.add_argument('--tag_prefix', '-tp',
                             help='The prefix of matching tags',
                             default='')
@@ -245,8 +246,11 @@ def main():
     Run this main function if this script is called directly.
     :return: None
     """
+    start = time()
     version_hero = VersionHero()
     version_hero.execute()
+    stop = time()
+    print("{0:.2f} seconds to complete".format(stop - start))
 
 
 if __name__ == "__main__":

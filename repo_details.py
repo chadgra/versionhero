@@ -4,33 +4,7 @@ Get information about a repository.
 import os
 import re
 from time import localtime, strptime, strftime
-from git import Repo
-
-
-def commit_contains_sub_paths(commit, sub_paths):
-    """
-    Determine if a commit contains changes to files that contain specific sub-paths
-    :param commit: the commit
-    :param sub_paths: a list of sub-paths. 'None' for changes to any files to be counted
-    :return: True if the commit has changes to any of the specific sub-paths
-    """
-    if not sub_paths:
-        return True
-
-    if '*' in sub_paths:
-        return True
-
-    if isinstance(sub_paths, str):
-        sub_paths = [sub_paths]
-
-    for file in commit.stats.files:
-        for sub_path in sub_paths:
-            sub_path = sub_path.replace('\\', '/')
-            sub_path = sub_path.lstrip('/')
-            if file.startswith(sub_path):
-                return True
-
-    return False
+from git import Repo, GitCmdObjectDB
 
 
 class RepoDetails:
@@ -55,9 +29,15 @@ class RepoDetails:
         self.repo_path = repo_path
         self.tag_prefix = tag_prefix
         self.tag_match_pattern = tag_match_pattern
-        self.sub_paths = sub_paths
         self.datetime_format = datetime_format
-        self._repo = Repo(repo_path)
+        self.sub_paths = []
+        if sub_paths:
+            for i in range(0, len(sub_paths)):
+                sub_paths[i] = sub_paths[i].replace('\\', '/')
+                sub_paths[i] = sub_paths[i].lstrip('/')
+                self.sub_paths.append(sub_paths[i])
+
+        self._repo = Repo(repo_path, odbt=GitCmdObjectDB)
         self._commit = self._repo.head.commit
         self._index = self._repo.index
         self._modification_count = None
@@ -68,7 +48,10 @@ class RepoDetails:
         The name of the currently checked out branch
         :return: the name of the branch as a string
         """
-        return self._repo.active_branch
+        try:
+            return self._repo.active_branch
+        except TypeError:
+            return "detached"
 
     def commit_number(self):
         """
@@ -173,7 +156,7 @@ class RepoDetails:
             if re.match(match_pattern, str(tag)):
                 tags.append(tag)
 
-        commits = list(self._repo.iter_commits())
+        commits = list(self._repo.iter_commits(paths=self.sub_paths))
         tag_name = ''
         index = 0
         for _, commit in enumerate(commits):
@@ -182,11 +165,10 @@ class RepoDetails:
                     tag_name = tag.name
                     break
 
-            if '' != tag_name:
+            if tag_name != '':
                 break
 
-            if commit_contains_sub_paths(commit, self.sub_paths):
-                index += 1
+            index += 1
 
         return output_function(self, separator, match_pattern, tag_name, index)
 
