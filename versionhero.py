@@ -163,8 +163,10 @@ class ProgramArgs:
             for project_dir in self.args.project_dir:
                 if not os.path.isabs(project_dir):
                     project_dir = os.path.abspath(os.path.join(os.getcwd(), project_dir))
-                project_dirs.append(project_dir.replace(self.repo_dir(), ''))
-
+                project_dir = project_dir.replace(self.repo_dir(), '')
+                if len(project_dir) == 0:
+                    project_dir = '.'
+                project_dirs.append(project_dir)
         self._project_dirs = project_dirs
         return self._project_dirs
 
