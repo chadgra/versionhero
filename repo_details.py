@@ -74,9 +74,22 @@ class RepoDetails:
             num_chars = 7
 
         if self._use_directory_hash:
-            commit = list(self._repo.iter_commits(paths=self.sub_paths))[0]
-        else:
-            commit = self._commit
+            return self.dir_sha
+
+        return self._commit.hexsha[:num_chars]
+
+    def dir_sha(self, num_chars=7):
+        """
+        The sha of the most recent commit with changes to a file in the sub_paths.
+        :param num_chars: the number of characters to return
+        :return: the sha as a string
+        """
+        try:
+            num_chars = int(num_chars)
+        except ValueError:
+            num_chars = 7
+
+        commit = list(self._repo.iter_commits(paths=self.sub_paths))[0]
         return commit.hexsha[:num_chars]
 
     def commit_datetime(self, datetime_format=None):
@@ -186,6 +199,7 @@ class RepoDetails:
         print(self.repo_path)
         print(self.branch_name())
         print(self.sha())
+        print(self.dir_sha())
         print(str(self.modification_count()))
         print(str(self.has_modifications()))
         print(self.commit_datetime())
@@ -200,7 +214,7 @@ def main():
     """
     working_directory = os.path.dirname(os.path.realpath(__file__))
     print(working_directory)
-    repo_details = RepoDetails(working_directory)
+    repo_details = RepoDetails(working_directory, sub_paths=['\\README.md'])
     repo_details.print_summary()
 
 

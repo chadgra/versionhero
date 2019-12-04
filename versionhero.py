@@ -247,6 +247,7 @@ class KeywordReplacer:
         self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime,
                                 r'(?P<datetime_format>.*)')
         self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*?)')
+        self.simple_replacement('GITDIRHASH', self.repo_details.dir_sha, r'(?P<num_chars>.*?)')
         self.simple_replacement('GITMODS', self.repo_details.has_modifications,
                                 r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
         self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*?)')
