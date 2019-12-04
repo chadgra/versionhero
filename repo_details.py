@@ -16,7 +16,8 @@ class RepoDetails:
                  tag_prefix='',
                  tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
                  sub_paths=None,
-                 datetime_format='%Y-%m-%d %H:%M:%S%z'):
+                 datetime_format='%Y-%m-%d %H:%M:%S%z',
+                 use_directory_hash=False):
         """
         Initialize the RepoDetails object.
         :param repo_path: the path to the repository
@@ -41,6 +42,7 @@ class RepoDetails:
         self._commit = self._repo.head.commit
         self._index = self._repo.index
         self._modification_count = None
+        self._use_directory_hash = use_directory_hash
         assert not self._repo.bare
 
     def branch_name(self):
@@ -71,7 +73,11 @@ class RepoDetails:
         except ValueError:
             num_chars = 7
 
-        return self._commit.hexsha[:num_chars]
+        if self._use_directory_hash:
+            commit = list(self._repo.iter_commits(paths=self.sub_paths))[0]
+        else:
+            commit = self._commit
+        return commit.hexsha[:num_chars]
 
     def commit_datetime(self, datetime_format=None):
         """

@@ -58,7 +58,8 @@ class VersionHero:
         """
         repo = RepoDetails(self.args.repo_dir(),
                            tag_prefix=self.args.tag_prefix(),
-                           sub_paths=self.args.project_dirs())
+                           sub_paths=self.args.project_dirs(),
+                           use_directory_hash=self.args.dir_hash())
         repo.print_summary()
 
         text = self.fetch_template_text()
@@ -89,6 +90,9 @@ class ProgramArgs:
                             help='The prefix of matching tags',
                             default='')
         parser.add_argument('--rename', '-rn',
+                            action='store_true')
+        parser.add_argument('--dir_hash', '-dh',
+                            help='If specified, gets the hash for just the project directories',
                             action='store_true')
 
         self.args = parser.parse_args()
@@ -185,6 +189,12 @@ class ProgramArgs:
         """
         return self.args.rename
 
+    def dir_hash(self):
+        """
+        Get the dir_hash bool
+        :return: True the sha/hash should be based on the project dirs, or if false, on the most recent commit
+        """
+        return self.args.dir_hash
 
 class KeywordReplacer:
     """
