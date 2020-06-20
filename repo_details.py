@@ -305,15 +305,11 @@ class RepoDetails:
         print(self.repo_path)
         print(self.branch_name())
         print(self.sha())
-        print(self.dir_sha())
         print(str(self.mods()))
-        print(str(self.dir_mods()))
         print(str(self.has_mods()))
-        print(str(self.has_dir_mods()))
         print(self.commit_datetime())
         print(self.current_datetime())
         print(self.version())
-        print(self.semver())
         print(self.semver_extended())
 
 
