@@ -240,7 +240,8 @@ class KeywordReplacer:
         :return: the new text string
         """
         self.simple_replacement('GITBRANCHNAME', self.repo_details.branch_name)
-        self.simple_replacement('GITMODCOUNT', self.repo_details.modification_count)
+        self.simple_replacement('GITMODCOUNT', self.repo_details.mods)
+        self.simple_replacement('GITDIRMODCOUNT', self.repo_details.dir_mods)
         self.simple_replacement('GITCOMMITNUMBER', self.repo_details.commit_number)
         self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime,
                                 r'(?P<datetime_format>.*)')
@@ -248,9 +249,16 @@ class KeywordReplacer:
                                 r'(?P<datetime_format>.*)')
         self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*?)')
         self.simple_replacement('GITDIRHASH', self.repo_details.dir_sha, r'(?P<num_chars>.*?)')
-        self.simple_replacement('GITMODS', self.repo_details.has_modifications,
+        self.simple_replacement('GITMODS', self.repo_details.has_mods,
+                                r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
+        self.simple_replacement('GITDIRMODS', self.repo_details.has_dir_mods,
                                 r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
         self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*?)')
+        self.simple_replacement('GITSEMVER', self.repo_details.semver)
+        self.simple_replacement('GITSEMVEREX', self.repo_details.semver_extended)
+        self.simple_replacement('GITMAJOR', self.repo_details.major)
+        self.simple_replacement('GITMINOR', self.repo_details.minor)
+        self.simple_replacement('GITPATCH', self.repo_details.patch)
         return self.text
 
 

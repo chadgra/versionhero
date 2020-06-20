@@ -43,9 +43,12 @@ class RepoDetails:
                 self.sub_paths.append(sub_paths[i])
 
         self._repo = Repo(repo_path, odbt=GitCmdObjectDB)
+        self._sub_path_commits = list(self._repo.iter_commits(paths=self.sub_paths))
+        self._all_commits = list(self._repo.iter_commits())
         self._commit = self._repo.head.commit
         self._index = self._repo.index
         self._modification_count = None
+        self._dir_modification_count = None
         self._use_directory_hash = use_directory_hash
         self._versions_dict = {}
         assert not self._repo.bare
@@ -65,7 +68,7 @@ class RepoDetails:
 
         # Search through the commits from newest to oldest searching for one that contains a tag
         # that matches the pattern.
-        commits = list(self._repo.iter_commits(paths=self.sub_paths))
+        commits = self._sub_path_commits
         tag_name = ''
         self._patch = 0
         for _, commit in enumerate(commits):
@@ -105,7 +108,8 @@ class RepoDetails:
         """
         if not separator:
             separator = self._default_separator
-        formatting = formatting.replace('%mc', '{self.modification_count()}')
+        formatting = formatting.replace('%dmc', '{self.dir_mods()}')
+        formatting = formatting.replace('%mc', '{self.mods()}')
         formatting = formatting.replace('%spr', '{self.semver_pre_release()}')
         formatting = formatting.replace('%sbm', '{self.semver_build_metadata()}')
         formatting = formatting.replace('%dsh', '{self.dir_sha()}')
@@ -132,7 +136,7 @@ class RepoDetails:
         The number of commits in the history of the currently checked out branch
         :return: the number of commits
         """
-        return len(list(self._repo.iter_commits()))
+        return len(self._all_commits)
 
     def sha(self, num_chars=7):
         """
@@ -146,7 +150,7 @@ class RepoDetails:
             num_chars = 7
 
         if self._use_directory_hash:
-            return self.dir_sha
+            return self.dir_sha(num_chars)
 
         return self._commit.hexsha[:num_chars]
 
@@ -161,7 +165,7 @@ class RepoDetails:
         except ValueError:
             num_chars = 7
 
-        commit = list(self._repo.iter_commits(paths=self.sub_paths))[0]
+        commit = self._sub_path_commits[0]
         return commit.hexsha[:num_chars]
 
     def commit_datetime(self, datetime_format=None):
@@ -184,45 +188,53 @@ class RepoDetails:
             datetime_format = self.datetime_format
         return strftime(datetime_format, localtime())
 
-    def modification_count(self, mods_format=None, no_mods_format=None):
+    def mods(self):
         """
         The number of modifications on the currently checked out commit
-        :param mods_format: an optional format that can be applied to the modification_count
-        :param no_mods_format: an optional format that can be applied if there are no modifications
         :return: the number of modifications as an int, or a string if a format is provided
         """
+        if self._use_directory_hash:
+            return self.dir_mods()
+
         if self._modification_count is None:
             self._modification_count = \
-                len(self._index.diff(None)) + len(self._index.diff('HEAD'))
-
-        if no_mods_format and self._modification_count:
-            return self._apply_format(no_mods_format)
-
-        if mods_format:
-            return self._apply_format(mods_format)
+                len(self._all_commits[0].diff(None)) + len(self._all_commits[0].diff('HEAD'))
 
         return self._modification_count
 
-    def semver_pre_release(self):
+    def dir_mods(self):
         """
-        The semver pre-release value based on the number of modifications
-        :return: a string of the semver pre-release
+        The number of modifications on the currently checked out commit
+        :return: the number of modifications as an int, or a string if a format is provided
         """
-        return self.modification_count('-mods.%mc', '')
+        if self._dir_modification_count is None:
+            self._dir_modification_count = \
+                len(self._sub_path_commits[0].diff(None, self.sub_paths)) + \
+                len(self._sub_path_commits[0].diff('HEAD', self.sub_paths))
 
-    def semver_build_metadata(self):
-        """
-        The semver build metadata value based on the dir_sha
-        :return: a string of the semver build metadata
-        """
-        return self._apply_format('+sha.%dsh')
+        return self._dir_modification_count
 
-    def has_modifications(self, true_value=True, false_value=False):
+    def has_mods(self, true_value=True, false_value=False):
         """
         A bool if there are local modifications on the currently checked out commit
         :return: True if there are modifications
         """
-        return true_value if (self.modification_count() > 0) else false_value
+        if type(true_value) is str:
+            true_value = self._apply_format(true_value)
+        if type(false_value) is str:
+            false_value = self._apply_format(false_value)
+        return true_value if (self.mods() > 0) else false_value
+
+    def has_dir_mods(self, true_value=True, false_value=False):
+        """
+        A bool if there are local modifications on the currently checked out commit
+        :return: True if there are modifications
+        """
+        if type(true_value) is str:
+            true_value = self._apply_format(true_value)
+        if type(false_value) is str:
+            false_value = self._apply_format(false_value)
+        return true_value if (self.dir_mods() > 0) else false_value
 
     def version(self, separator=None, version_format=None):
         """
@@ -249,6 +261,20 @@ class RepoDetails:
         :return: A string of the extended semantic version
         """
         return self._apply_format('%M.%m.%p%spr%sbm')
+
+    def semver_pre_release(self):
+        """
+        The semver pre-release value based on the number of modifications
+        :return: a string of the semver pre-release
+        """
+        return self.has_dir_mods('-mods.%mc', '')
+
+    def semver_build_metadata(self):
+        """
+        The semver build metadata value based on the dir_sha
+        :return: a string of the semver build metadata
+        """
+        return self._apply_format('+sha.%sh')
 
     def major(self):
         """
@@ -280,8 +306,10 @@ class RepoDetails:
         print(self.branch_name())
         print(self.sha())
         print(self.dir_sha())
-        print(str(self.modification_count()))
-        print(str(self.has_modifications()))
+        print(str(self.mods()))
+        print(str(self.dir_mods()))
+        print(str(self.has_mods()))
+        print(str(self.has_dir_mods()))
         print(self.commit_datetime())
         print(self.current_datetime())
         print(self.version())
@@ -296,7 +324,7 @@ def main():
     """
     working_directory = os.path.dirname(os.path.realpath(__file__))
     print(working_directory)
-    repo_details = RepoDetails(working_directory, sub_paths=['\\README.md'])
+    repo_details = RepoDetails(working_directory, sub_paths=['\\README.md'], use_directory_hash=True)
     repo_details.print_summary()
 
 
