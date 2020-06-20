@@ -17,6 +17,7 @@ class RepoDetails:
                  tag_match_pattern=r'(?P<major>\d+)(?P<separator>[._-])(?P<minor>\d+)',
                  sub_paths=None,
                  datetime_format='%Y-%m-%d %H:%M:%S%z',
+                 version_format='%M%s%m%s%p%s%mc',
                  use_directory_hash=False):
         """
         Initialize the RepoDetails object.
@@ -26,11 +27,14 @@ class RepoDetails:
         :param sub_paths: a list of which sub-paths that will cause the version to increase if
                           changes are made to files that start with matching paths
         :param datetime_format: the default format for date/time stamps
+        :param version_format: the default format for the version
+        :param use_directory_hash: return the hash of the commit with the last change of the sub_paths
         """
         self.repo_path = repo_path
         self.tag_prefix = tag_prefix
         self.tag_match_pattern = tag_match_pattern
         self.datetime_format = datetime_format
+        self.default_version_format = version_format
         self.sub_paths = []
         if sub_paths:
             for i in range(0, len(sub_paths)):
@@ -43,7 +47,75 @@ class RepoDetails:
         self._index = self._repo.index
         self._modification_count = None
         self._use_directory_hash = use_directory_hash
+        self._versions_dict = {}
         assert not self._repo.bare
+        self._calculate_version_value()
+
+    def _calculate_version_value(self):
+        """
+        Calculate version values: major, minor, patch
+        :return: None
+        """
+        # Get all the tags that have the correct prefix and match the pattern.
+        match_pattern = self.tag_prefix + self.tag_match_pattern
+        tags = []
+        for tag in self._repo.tags:
+            if re.match(match_pattern, str(tag)):
+                tags.append(tag)
+
+        # Search through the commits from newest to oldest searching for one that contains a tag
+        # that matches the pattern.
+        commits = list(self._repo.iter_commits(paths=self.sub_paths))
+        tag_name = ''
+        self._patch = 0
+        for _, commit in enumerate(commits):
+            for tag in tags:
+                # if the commit sha matches one of the tag sha's then use this tag and break
+                if tag.object.hexsha == commit.hexsha:
+                    tag_name = tag.name
+                    break
+
+            if tag_name != '':
+                break
+
+            # increment the patch number
+            self._patch += 1
+
+        self._default_separator = '.'
+        self._major = '0'
+        self._minor = '0'
+        self._patch = str(self._patch)
+
+        # Use regex to pull the major and minor string from the tag, as well as the separator.
+        match = re.match(match_pattern, tag_name)
+        if match:
+            if match.group('major'):
+                self._major = match.group('major')
+            if match.group('minor'):
+                self._minor = match.group('minor')
+            if match.group('separator'):
+                self._default_separator = match.group('separator')
+
+    def _apply_format(self, formatting, separator=None):
+        """
+        Apply formatting
+        :param separator: the character that separates the different parts of the version
+        :param formatting: the format string that has keywords that will be replaced
+        :return: a string with replaced keywords
+        """
+        if not separator:
+            separator = self._default_separator
+        formatting = formatting.replace('%mc', '{self.modification_count()}')
+        formatting = formatting.replace('%spr', '{self.semver_pre_release()}')
+        formatting = formatting.replace('%sbm', '{self.semver_build_metadata()}')
+        formatting = formatting.replace('%dsh', '{self.dir_sha()}')
+        formatting = formatting.replace('%sh', '{self.sha()}')
+        formatting = formatting.replace('%s', '{separator}')
+        formatting = formatting.replace('%M', '{self._major}')
+        formatting = formatting.replace('%m', '{self._minor}')
+        formatting = formatting.replace('%p', '{self._patch}')
+        formatting = formatting.replace('%hm', '{self.has_modifications()}')
+        return eval(f'f"""{formatting}"""')
 
     def branch_name(self):
         """
@@ -112,15 +184,38 @@ class RepoDetails:
             datetime_format = self.datetime_format
         return strftime(datetime_format, localtime())
 
-    def modification_count(self):
+    def modification_count(self, mods_format=None, no_mods_format=None):
         """
         The number of modifications on the currently checked out commit
-        :return: the number of modifications as an int
+        :param mods_format: an optional format that can be applied to the modification_count
+        :param no_mods_format: an optional format that can be applied if there are no modifications
+        :return: the number of modifications as an int, or a string if a format is provided
         """
         if self._modification_count is None:
             self._modification_count = \
                 len(self._index.diff(None)) + len(self._index.diff('HEAD'))
+
+        if no_mods_format and self._modification_count:
+            return self._apply_format(no_mods_format)
+
+        if mods_format:
+            return self._apply_format(mods_format)
+
         return self._modification_count
+
+    def semver_pre_release(self):
+        """
+        The semver pre-release value based on the number of modifications
+        :return: a string of the semver pre-release
+        """
+        return self.modification_count('-mods.%mc', '')
+
+    def semver_build_metadata(self):
+        """
+        The semver build metadata value based on the dir_sha
+        :return: a string of the semver build metadata
+        """
+        return self._apply_format('+sha.%dsh')
 
     def has_modifications(self, true_value=True, false_value=False):
         """
@@ -129,67 +224,52 @@ class RepoDetails:
         """
         return true_value if (self.modification_count() > 0) else false_value
 
-    def version_output_function(self, separator, match_pattern, tag, index):
+    def version(self, separator=None, version_format=None):
         """
-        Create the desired version number string
-        :param separator: the character that separates the different parts of the version
-        :param match_pattern: the pattern that will match the tag
-        :param tag: the first tag that matched the pattern
-        :param index: the number of commits since the tag
-        :return: a string representing a version number
+        The version in a <major>.<minor>.<patch>.<mods> format.
+        :param separator: The separator to be used between parts of the version. If not supplied
+                          the separator found in the tag will be used.
+        :param version_format: an alternative format that can be used
+        :return: A string of the version
         """
-        major = '0'
-        minor = '0'
-        match = re.match(match_pattern, tag)
-        if match:
-            if match.group('major'):
-                major = match.group('major')
-            if match.group('minor'):
-                minor = match.group('minor')
-            if separator is None or separator is '':
-                if match.group('separator'):
-                    separator = match.group('separator')
+        if not version_format:
+            version_format = self.default_version_format
+        return self._apply_format(version_format, separator)
 
-        if separator is None or separator is '':
-            separator = '.'
-
-        return '{0}{1}{2}{1}{3}{1}{4}'.format(major,
-                                              separator,
-                                              minor,
-                                              index,
-                                              self.modification_count())
-
-    def version(self,
-                separator=None,
-                output_function=version_output_function):
+    def semver(self):
         """
-        Search through commits to create the correct version number
-        :param separator: the character that separates the different parts of the version
-        :param output_function: the function that will be called to actually create the version
-                                string
-        :return: a version string
+        A simple semantic version based version that is <major>.<minor>.<patch>
+        :return: A string of the semantic version
         """
-        match_pattern = self.tag_prefix + self.tag_match_pattern
-        tags = []
-        for tag in self._repo.tags:
-            if re.match(match_pattern, str(tag)):
-                tags.append(tag)
+        return self._apply_format('%M.%m.%p')
 
-        commits = list(self._repo.iter_commits(paths=self.sub_paths))
-        tag_name = ''
-        index = 0
-        for _, commit in enumerate(commits):
-            for tag in tags:
-                if tag.object.hexsha == commit.hexsha:
-                    tag_name = tag.name
-                    break
+    def semver_extended(self):
+        """
+        An extended semantic version based version that is <major>.<minor>.<patch>-mods.<mods>+sha.<dir_sha7>
+        :return: A string of the extended semantic version
+        """
+        return self._apply_format('%M.%m.%p%spr%sbm')
 
-            if tag_name != '':
-                break
+    def major(self):
+        """
+        The major value of the version
+        :return: A string
+        """
+        return self._major
 
-            index += 1
+    def minor(self):
+        """
+        The minor value of the version
+        :return: A string
+        """
+        return self._minor
 
-        return output_function(self, separator, match_pattern, tag_name, index)
+    def patch(self):
+        """
+        The patch value of the version
+        :return: A string
+        """
+        return self._patch
 
     def print_summary(self):
         """
@@ -205,6 +285,8 @@ class RepoDetails:
         print(self.commit_datetime())
         print(self.current_datetime())
         print(self.version())
+        print(self.semver())
+        print(self.semver_extended())
 
 
 def main():
