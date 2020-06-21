@@ -196,6 +196,16 @@ class ProgramArgs:
         """
         return self.args.dir_hash
 
+class Keyword:
+    """
+    The keyword class.
+    """
+    def __init__(self, keyword, description, substitution_lambda, arg_pattern=''):
+        self.keyword = keyword
+        self.description = description
+        self.substitution_lambda = substitution_lambda
+        self.arg_pattern = arg_pattern
+
 class KeywordReplacer:
     """
     The keyword replacer class.
@@ -234,32 +244,34 @@ class KeywordReplacer:
             substitution = str(substitution_lambda(**substitution_args))
             self.text = self.text.replace(match.group(), substitution)
 
+    def keywords(self):
+        return [
+            Keyword('GITBRANCHNAME', 'The name of the branch that is checked out.', self.repo_details.branch_name),
+            Keyword('GITMODCOUNT', 'The number of locally modified (including added/removed) files.', self.repo_details.mods),
+            Keyword('GITDIRMODCOUNT', 'The number of locally modified (including added/removed) files in the supplied directories.', self.repo_details.dir_mods),
+            Keyword('GITCOMMITNUMBER', 'The number of commits in this repo.', self.repo_details.commit_number),
+            Keyword('GITCOMMITDATE', 'The date/time of the commit that is checked out.', self.repo_details.commit_datetime, r'(?P<datetime_format>.*)'),
+            Keyword('GITBUILDDATE', 'The current date/time.', self.repo_details.current_datetime, r'(?P<datetime_format>.*)'),
+            Keyword('GITHASH', 'The sha of the commit that is checked out. Default to 7 characters, but a different numbers of characters may be specified by appending a number (eg $GITHASH27$).', self.repo_details.sha, r'(?P<num_chars>.*?)'),
+            Keyword('GITDIRHASH', 'The sha of the most recent commit that contains changes to a file in one of the supplied directories.', self.repo_details.dir_sha, r'(?P<num_chars>.*?)'),
+            Keyword('GITMODS', 'A way to include different values based on if there are local mods (eg $GITMODS?-dirty:-clean$).', self.repo_details.has_mods, r'\?(?P<true_value>.*?):(?P<false_value>.*?)'),
+            Keyword('GITDIRMODS', 'See GITMODS - based on modifications in the supplied directories.', self.repo_details.has_dir_mods, r'\?(?P<true_value>.*?):(?P<false_value>.*?)'),
+            Keyword('GITVERSIONF', 'The version. A format string can be supplied (eg $GITVERSIONF%M.%m.%p$).', self.repo_details.version, r'(?P<version_format>.*)'),
+            Keyword('GITVERSION', 'The version. A separator may be supplied (eg $GITVERSION_$).', self.repo_details.version, r'(?P<separator>.*?)'),
+            Keyword('GITSEMVER', 'The version expressed as a semantic version (ie <major>.<minor>.<patch>).', self.repo_details.semver),
+            Keyword('GITSEMVEREX', 'The version expressed as an extended semantic version (ie <major>.<minor>.<patch>-mods.<mods>+sha.<hash7>).', self.repo_details.semver_extended),
+            Keyword('GITMAJOR', 'The major part of the version.', self.repo_details.major),
+            Keyword('GITMINOR', 'The minor part of the version.', self.repo_details.minor),
+            Keyword('GITPATCH', 'The patch part of the version.', self.repo_details.patch)
+        ]
+
     def execute(self):
         """
         Execute all of the keyword replacements in the supplied text
         :return: the new text string
         """
-        self.simple_replacement('GITBRANCHNAME', self.repo_details.branch_name)
-        self.simple_replacement('GITMODCOUNT', self.repo_details.mods)
-        self.simple_replacement('GITDIRMODCOUNT', self.repo_details.dir_mods)
-        self.simple_replacement('GITCOMMITNUMBER', self.repo_details.commit_number)
-        self.simple_replacement('GITCOMMITDATE', self.repo_details.commit_datetime,
-                                r'(?P<datetime_format>.*)')
-        self.simple_replacement('GITBUILDDATE', self.repo_details.current_datetime,
-                                r'(?P<datetime_format>.*)')
-        self.simple_replacement('GITHASH', self.repo_details.sha, r'(?P<num_chars>.*?)')
-        self.simple_replacement('GITDIRHASH', self.repo_details.dir_sha, r'(?P<num_chars>.*?)')
-        self.simple_replacement('GITMODS', self.repo_details.has_mods,
-                                r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
-        self.simple_replacement('GITDIRMODS', self.repo_details.has_dir_mods,
-                                r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
-        self.simple_replacement('GITVERSIONF', self.repo_details.version, r'(?P<version_format>.*)')
-        self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*?)')
-        self.simple_replacement('GITSEMVER', self.repo_details.semver)
-        self.simple_replacement('GITSEMVEREX', self.repo_details.semver_extended)
-        self.simple_replacement('GITMAJOR', self.repo_details.major)
-        self.simple_replacement('GITMINOR', self.repo_details.minor)
-        self.simple_replacement('GITPATCH', self.repo_details.patch)
+        for keyword in self.keywords():
+            self.simple_replacement(keyword.keyword, keyword.substitution_lambda, keyword.arg_pattern)
         return self.text
 
 
