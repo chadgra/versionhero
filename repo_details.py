@@ -302,15 +302,14 @@ class RepoDetails:
         Prints a summary of the repository.
         :return: None
         """
-        print(self.repo_path)
-        print(self.branch_name())
-        print(self.sha())
-        print(str(self.mods()))
-        print(str(self.has_mods()))
-        print(self.commit_datetime())
-        print(self.current_datetime())
-        print(self.version())
-        print(self.semver_extended())
+        print(f"repo path: {self.repo_path}")
+        print(f"branch: {self.branch_name()}")
+        print(f"sha: {self.sha()}")
+        print(f"mods: {self.mods()}")
+        print(f"commit: {self.commit_datetime()}")
+        print(f"build: {self.current_datetime()}")
+        print(f"version: {self.version()}")
+        print(f"semver: {self.semver_extended()}")
 
 
 def main():
