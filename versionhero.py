@@ -253,6 +253,7 @@ class KeywordReplacer:
                                 r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
         self.simple_replacement('GITDIRMODS', self.repo_details.has_dir_mods,
                                 r'\?(?P<true_value>.*?):(?P<false_value>.*?)')
+        self.simple_replacement('GITVERSIONF', self.repo_details.version, r'(?P<version_format>.*)')
         self.simple_replacement('GITVERSION', self.repo_details.version, r'(?P<separator>.*?)')
         self.simple_replacement('GITSEMVER', self.repo_details.semver)
         self.simple_replacement('GITSEMVEREX', self.repo_details.semver_extended)
