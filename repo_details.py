@@ -74,7 +74,7 @@ class RepoDetails:
         for _, commit in enumerate(commits):
             for tag in tags:
                 # if the commit sha matches one of the tag sha's then use this tag and break
-                if tag.object.hexsha == commit.hexsha:
+                if tag.commit.hexsha == commit.hexsha:
                     tag_name = tag.name
                     break
 
